@@ -1,0 +1,255 @@
+clinical.norm=function(a=5,b=2,p=4,q=10,n=5000)
+{
+  tot.count.A=NULL
+  tot.count.B=NULL
+  for(k in 1:n)
+  {
+    mu_A=a
+    mu_B=b
+    s_A=p
+    s_B=q
+    count.A=5
+    count.B=5
+    u=sample(c(1:100),100,replace=T)
+    c=45
+    del=c(rep(1,5),rep(0,5))
+    X=c(rnorm(5,mean=mu_A,sd=sqrt(s_A)),rnorm(5,mean=mu_B,sd=sqrt(s_B)))
+    #estimate of the mean response and the variation of treatment A
+    mu.hat.A=sum(del*X)/count.A
+    s.hat.A=(sum(del*X^2)/count.A)-(mu.hat.A)^2
+    mu.hat.B=sum((1-del)*X)/count.B
+    s.hat.B=(sum((1-del)*X^2)/count.B)-(mu.hat.B)^2
+    m.hat.A=c()
+    m.hat.B=c()
+    s.A=c()
+    s.B=c()
+    m.hat.A[10]=mu.hat.A
+    m.hat.B[10]=mu.hat.B
+    s.A[10]=s.hat.A
+    s.B[10]=s.hat.B
+    prob.A=c()
+    for(i in c(11:100))
+    {
+      if(u[i]>=c)
+      {
+        prob.A[i]=max(pnorm((m.hat.A[i-1]-m.hat.B[i-1])/sqrt(s.A[i-1]+s.B[i-1])),(2/pi)*asin(sqrt(s.A[i-1]/(s.A[i-1]+s.B[i-1]))))
+        if(isTRUE(runif(1)<prob.A[i]))
+        {
+          X[i]=rnorm(1,mean=mu_A,sd=sqrt(s_A))
+          count.A=count.A+1
+          del[i]=1
+        }
+        else
+        {
+          X[i]=rnorm(1,mean=mu_B,sd=sqrt(s_B))
+          count.B=count.B+1
+          del[i]=0
+        }
+      }
+      else
+      {
+        prob.A[i]=min(pnorm((m.hat.A[i-1]-m.hat.B[i-1])/sqrt(s.A[i-1]+s.B[i-1])),(2/pi)*asin(sqrt(s.A[i-1]/(s.A[i-1]+s.B[i-1]))))
+        if(isTRUE(runif(1)<prob.A[i]))
+        {
+          X[i]=rnorm(1,mean=mu_A,sd=sqrt(s_A))
+          count.A=count.A+1
+          del[i]=1
+        }
+        else
+        {
+          X[i]=rnorm(1,mean=mu_B,sd=sqrt(s_B))
+          count.B=count.B+1
+          del[i]=0
+        }
+      }
+      m.hat.A[i]=sum(del*X)/count.A
+      s.A[i]=(sum(del*X^2)/count.A)-(m.hat.A[i])^2
+      m.hat.B[i]=sum((1-del)*X)/count.B
+      s.B[i]=(sum((1-del)*X^2)/count.B)-(m.hat.B[i])^2
+    }
+    tot.count.A[k]=count.A
+    tot.count.B[k]=count.B
+  }
+  ratio.A=tot.count.A/(tot.count.A+tot.count.B)
+  se.ratio.A=sd(ratio.A)
+  result=list(mean(ratio.A),se.ratio.A)
+  names(result)=c("mean ratio", "standard error")
+  return(result)
+}
+
+#function for approximating the probability
+
+
+clinical.cauchy=function(a=5,b=5,p=1,q=2,n=1000)
+{  
+  tot.count.A=NULL
+  tot.count.B=NULL
+  for(k in 1:n)
+  {
+    mu_A=a
+    mu_B=b
+    s_A=p
+    s_B=q
+    u=sample(c(1:100),100,replace=T)
+    c=45
+    del=c(rep(1,5),rep(0,5))
+    X=c(rcauchy(5,location=mu_A,scale=s_A),rcauchy(5,location=mu_B,scale=s_B))
+   
+   
+    library(univariateML)
+    mu.A.hat=mlcauchy(X[1:5])[1]
+    mu.B.hat=mlcauchy(X[6:10])[1]
+   
+    s.A.hat=mlcauchy(X[1:5])[2]
+    s.B.hat=mlcauchy(X[6:10])[2]
+   
+    m.hat.A=c()
+    m.hat.B=c()
+    s.A=c()
+    s.B=c()
+    m.hat.A[10]=mu.A.hat
+    m.hat.B[10]=mu.B.hat
+    s.A[10]=s.A.hat
+    s.B[10]=s.B.hat
+    prob.A=c()
+    for(i in c(11:100))
+    {
+      if(u[i]>=c)
+      {
+        prob.A[i]=max(pcauchy((m.hat.A[i-1]-m.hat.B[i-1])/(s.A[i-1]+s.B[i-1])),integrate(function (x) 2*log(x^2)/(pi^2*(x^2-1)), lower=0, upper=s.A[i-1]/s.B[i-1])$value)
+        if(isTRUE(runif(1)<prob.A[i]))
+        {
+          X[i]=rcauchy(1,location=mu_A,scale=s_A)
+          del[i]=1
+        }
+        else
+        {
+          X[i]=rcauchy(1,location=mu_B,scale=s_B)
+          del[i]=0
+        }
+      }
+      else
+      {
+        prob.A[i]=min(pcauchy((m.hat.A[i-1]-m.hat.B[i-1])/(s.A[i-1]+s.B[i-1])),integrate(function (x) 2*log(x^2)/(pi^2*(x^2-1)), lower=0, upper=s.A[i-1]/s.B[i-1])$value)
+        if(isTRUE(runif(1)<prob.A[i]))
+        {
+          X[i]=rcauchy(1,location=mu_A,scale=s_A)
+          del[i]=1
+        }
+        else
+        {
+          X[i]=rcauchy(1,location=mu_B,scale=s_B)
+          del[i]=0
+        }
+      }
+      m.hat.A[i]=mlcauchy(X[del==1])[1]
+      s.A[i]=mlcauchy(X[del==1])[2]
+      m.hat.B[i]=mlcauchy(X[del==0])[1]
+      s.B[i]=mlcauchy(X[del==0])[2]
+    }
+    tot.count.A[k]=sum(del==1)
+    tot.count.B[k]=sum(del==0)
+  }
+  ratio.A=tot.count.A/(tot.count.A+tot.count.B)
+  se.ratio.A=sd(ratio.A)
+  result=list(mean(ratio.A),se.ratio.A)
+  names(result)=c("mean ratio","standard error")
+  return(result)
+}
+
+
+
+prob1.exp=function(muA,muB,sA,sB)
+{
+  if(muB-muA<=0)
+    return(1-(sB/(sA+sB))*exp((muB-muA)/sB))
+  else
+    return((sA/(sA+sB))*exp(-((muB-muA)/sA)))
+}
+
+
+clinical.exp=function(a,b,p,q,n=5000)
+{
+  tot.count.A=NULL
+  tot.count.B=NULL
+  for(k in 1:n)
+  {
+    mu_A=a
+    mu_B=b
+    s_A=p
+    s_B=q
+    count.A=5
+    count.B=5
+    u=sample(c(1:100),100,replace=T)
+    c=45
+    del=c(rep(1,5),rep(0,5))
+    X=c(rexp(5,1/s_A)+mu_A,rexp(5,1/s_B)+mu_B)
+    #estimate of the mean response and the variation of treatment A
+    mu.hat.A=min(X*del)
+    s.hat.A=(sum(X*del-mu.hat.A))/count.A
+    mu.hat.B=min(X*(1-del))
+    s.hat.B=sum((1-del)*X-mu.hat.B)/count.B
+    m.hat.A=c()
+    m.hat.B=c()
+    s.A=c()
+    s.B=c()
+    m.hat.A[10]=mu.hat.A
+    m.hat.B[10]=mu.hat.B
+    s.A[10]=s.hat.A
+    s.B[10]=s.hat.B
+    prob.A=c()
+    for(i in c(11:100))
+    {
+      if(u[i]>=c)
+      {
+        prob.A[i]=max(prob1.exp(m.hat.A[i-1],m.hat.B[i-1],s.A[i-1],s.B[i-1]),(s.A[i-1]/(s.A[i-1]+s.B[i-1])))
+        if(isTRUE(runif(1)<prob.A[i]))
+        {
+          X[i]=rexp(1,1/s_A)+mu_A
+          count.A=count.A+1
+          del[i]=1
+        }
+        else
+        {
+          X[i]=rexp(1,1/s_B)+mu_B
+          count.B=count.B+1
+          del[i]=0
+        }
+      }
+      else
+      {
+        prob.A[i]=min(prob1.exp(m.hat.A[i-1],m.hat.B[i-1],s.A[i-1],s.B[i-1]),(s.A[i-1]/(s.A[i-1]+s.B[i-1])))
+        if(isTRUE(runif(1)<prob.A[i]))
+        {
+          X[i]=rexp(1,1/s_A)+mu_A
+          count.A=count.A+1
+          del[i]=1
+        }
+        else
+        {
+          X[i]=rexp(1,1/s_B)+mu_B
+          count.B=count.B+1
+          del[i]=0
+        }
+      }
+      m.hat.A[i]=min(X*del)
+      s.A[i]=(sum(X*del-mu.hat.A))/count.A
+      m.hat.B[i]=min(X*(1-del))
+      s.B[i]=sum((1-del)*X-mu.hat.B)/count.B
+    }
+    tot.count.A[k]=count.A
+    tot.count.B[k]=count.B
+  }
+  ratio.A=tot.count.A/(tot.count.A+tot.count.B)
+  se.ratio.A=sd(ratio.A)
+  result=list(mean(ratio.A),se.ratio.A)
+  names(result)=c("mean ratio", "standard error")
+  return(result)
+}
+
+clinical.exp(5,4,2,3)
+clinical.exp(4,5,4,4)
+clinical.exp(9,4,2,2)
+clinical.exp(4,4,2,3)
+clinical.exp(5,5,10,4)
+clinical.exp(4,4,2,2)
