@@ -1,0 +1,88 @@
+prob1.exp=function(muA,muB,sA,sB)
+{
+  if(muB-muA<=0)
+    return(1-(sB/(sA+sB))*exp((muB-muA)/sB))
+  else
+    return((sA/(sA+sB))*exp(-((muB-muA)/sA)))
+}
+
+
+clinical.exp=function(a,b,p,q,n=5000)
+{ 
+  tot.count.A=NULL
+  tot.count.B=NULL
+  for(k in 1:n)
+  {
+    mu_A=a
+    mu_B=b
+    s_A=p
+    s_B=q
+    count.A=5
+    count.B=5
+    u=sample(c(1:100),100,replace=T)
+    c=45
+    del=c(rep(1,5),rep(0,5))
+    X=c(rexp(5,1/s_A)+mu_A,rexp(5,1/s_B)+mu_B)
+    #estimate of the mean response and the variation of treatment A
+    mu.hat.A=min(X*del)
+    s.hat.A=(sum(X*del-mu.hat.A))/count.A
+    mu.hat.B=min(X*(1-del))
+    s.hat.B=sum((1-del)*X-mu.hat.B)/count.B
+    m.hat.A=c()
+    m.hat.B=c()
+    s.A=c()
+    s.B=c()
+    m.hat.A[10]=mu.hat.A
+    m.hat.B[10]=mu.hat.B 
+    s.A[10]=s.hat.A 
+    s.B[10]=s.hat.B
+    prob.A=c() 
+    for(i in c(11:100)) 
+    {
+      if(u[i]>=c)
+      { 
+        prob.A[i]=max(prob1.exp(m.hat.A[i-1],m.hat.B[i-1],s.A[i-1],s.B[i-1]),(s.A[i-1]/(s.A[i-1]+s.B[i-1])))
+        if(isTRUE(runif(1)<prob.A[i]))
+        { 
+          X[i]=rexp(1,1/s_A)+mu_A
+          count.A=count.A+1 
+          del[i]=1 
+        }
+        else
+        {
+          X[i]=rexp(1,1/s_B)+mu_B
+          count.B=count.B+1
+          del[i]=0
+        }
+      }
+      else 
+      { 
+        prob.A[i]=min(prob1.exp(m.hat.A[i-1],m.hat.B[i-1],s.A[i-1],s.B[i-1]),(s.A[i-1]/(s.A[i-1]+s.B[i-1])))
+        if(isTRUE(runif(1)<prob.A[i]))
+        {
+          X[i]=rexp(1,1/s_A)+mu_A
+          count.A=count.A+1 
+          del[i]=1
+        }
+        else
+        { 
+          X[i]=rexp(1,1/s_B)+mu_B
+          count.B=count.B+1
+          del[i]=0
+        }
+      }
+      m.hat.A[i]=min(X*del)
+      s.A[i]=(sum(X*del-mu.hat.A))/count.A
+      m.hat.B[i]=min(X*(1-del))
+      s.B[i]=sum((1-del)*X-mu.hat.B)/count.B 
+    } 
+    tot.count.A[k]=count.A 
+    tot.count.B[k]=count.B 
+  }
+  ratio.A=tot.count.A/(tot.count.A+tot.count.B)
+  se.ratio.A=sd(ratio.A) 
+  result=list(mean(ratio.A),se.ratio.A)
+  names(result)=c("mean ratio", "standard error")
+  return(result)
+}
+clinical.exp(5,5,3,3)
