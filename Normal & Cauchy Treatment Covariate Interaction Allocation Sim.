@@ -1,0 +1,211 @@
+clinical.int.norm=function(a1=2,a2=2,b1=4,b2=4,s_A=4,s_B=4,u=sample(c(1:100),100,replace=T))
+{
+  count.A=5
+  count.B=5
+  fac=factor.age(u)
+  muA=NULL
+  muB=NULL
+ 
+  for(i in 1:100)
+  {
+    muA[i]=a1+(b1*fac[i])
+    muB[i]=a2+(b2*fac[i])
+  }
+  c=45
+  del=NULL
+  del[1:10]=c(rep(1,5),rep(0,5))
+ 
+ 
+  X=NULL
+  for(i in 1:5)
+    X[i]=rnorm(1,muA[i],sqrt(s_A))
+  for(i in 6:10)
+    X[i]=rnorm(1,muB[i],sqrt(s_B))
+ 
+  #estimates of a alphas and betas
+  a1.hat=NULL
+  a2.hat=NULL
+  b1.hat=NULL
+  b2.hat=NULL
+  s.A=NULL
+  s.B=NULL
+ 
+  a1.hat[10]=lm(X[which(del==1)]~fac[which(del==1)])$coefficients[1]
+  a2.hat[10]=lm(X[which(del==0)]~fac[which(del==0)])$coefficients[1]
+  b1.hat[10]=lm(X[which(del==1)]~fac[which(del==1)])$coefficients[2]
+  b2.hat[10]=lm(X[which(del==0)]~fac[which(del==0)])$coefficients[2]
+
+  s.A[10]=(1/(count.A*(count.A-1)))*sum((as.vector(dist(X[del==1],method="manhattan")))^2)
+  s.B[10]=(1/(count.B*(count.B-1)))*sum((as.vector(dist(X[del==0],method="manhattan")))^2)
+ 
+  prob.A=c()
+  for(i in c(11:100))
+  {
+    if(u[i]>=c)
+    {
+      prob.A[i]=max(pnorm((a1.hat[i-1]-a2.hat[i-1]+(b1.hat[i-1]-b2.hat[i-1])*fac[i])/sqrt(s.A[i-1]+s.B[i-1])),(2/pi)*asin(sqrt(s.A[i-1]/(s.A[i-1]+s.B[i-1]))))
+      if(isTRUE(runif(1)<prob.A[i]))
+      {
+        X[i]=rnorm(1,mean=muA[i],sd=sqrt(s_A))
+        count.A=count.A+1
+        del[i]=1
+      }
+      else
+      {
+        X[i]=rnorm(1,mean=muB[i],sd=sqrt(s_B))
+        count.B=count.B+1
+        del[i]=0
+      }
+    }
+    else
+    {
+      prob.A[i]=min(pnorm((a1.hat[i-1]-a2.hat[i-1]+(b1.hat[i-1]-b2.hat[i-1])*fac[i])/sqrt(s.A[i-1]+s.B[i-1])),(2/pi)*asin(sqrt(s.A[i-1]/(s.A[i-1]+s.B[i-1]))))
+      if(isTRUE(runif(1)<prob.A[i]))
+      {
+        X[i]=rnorm(1,mean=muA[i],sd=sqrt(s_A))
+        count.A=count.A+1
+        del[i]=1
+      }
+      else
+      {
+        X[i]=rnorm(1,mean=muB[i],sd=sqrt(s_B))
+        count.B=count.B+1
+        del[i]=0
+      }
+    }
+   
+    a1.hat[i]=lm(X[which(del==1)]~fac[which(del==1)])$coefficients[1]
+    a2.hat[i]=lm(X[which(del==0)]~fac[which(del==0)])$coefficients[1]
+    b1.hat[i]=lm(X[which(del==1)]~fac[which(del==1)])$coefficients[2]
+    b2.hat[i]=lm(X[which(del==0)]~fac[which(del==0)])$coefficients[2]
+   
+    s.A[i]=(1/(count.A*(count.A-1)))*sum((as.vector(dist(X[del==1],method="manhattan")))^2)
+    s.B[i]=(1/(count.B*(count.B-1)))*sum((as.vector(dist(X[del==0],method="manhattan")))^2)
+  }
+  return(c(sum(del)/100,sum(1-del)/100))
+}
+
+result=matrix(0,nrow=5000,ncol=2)
+for(i in 1:5000)
+  result[i,]=clinical.int.norm()
+
+propA=mean(result[,1])
+sdA=sd(result[,1])
+l=list(propA,sdA)
+names(l)=c("Mean Ratio","Standard Error")
+l
+
+clinical.int.cauchy=function(a1,a2,b1,b2,s_A,s_B,u)
+{
+  count.A=10
+  count.B=10
+  fac=factor.age(u)
+  muA=NULL
+  muB=NULL
+  for(i in 1:100)
+  {
+    muA[i]=a1+(b1*fac[i])
+    muB[i]=a2+(b2*fac[i])
+  }
+  c=45
+  del=NULL
+  del=c(rep(1,10),rep(0,10))
+ 
+  X=NULL
+  for(i in 1:10)
+    X[i]=rcauchy(1,muA[i],s_A)
+  for(i in 11:20)
+    X[i]=rcauchy(1,muB[i],s_B)
+ 
+ 
+  scale.A=NULL
+  scale.A[20]=MASS::rlm(X[del==1]~fac[1:20][which(del==1)])$s
+  scale.B=NULL
+  scale.B[20]=MASS::rlm(X[del==0]~fac[1:20][which(del==0)])$s
+ 
+ 
+ 
+  a1.hat=NULL
+  a2.hat=NULL
+  b1.hat=NULL
+  b2.hat=NULL
+ 
+  a1.hat[20]=MASS::rlm(X[del==1]~fac[1:20][which(del==1)])$coefficients[1]
+  b1.hat[20]=MASS::rlm(X[del==1]~fac[1:20][which(del==1)])$coefficients[2]
+  a2.hat[20]=MASS::rlm(X[del==0]~fac[1:20][which(del==0)])$coefficients[1]
+  b2.hat[20]=MASS::rlm(X[del==0]~fac[1:20][which(del==0)])$coefficients[2]
+ 
+  prob.A=NULL
+  for(i in c(21:100))
+  {
+    if(u[i]>=c)
+    {
+      prob.A[i]=max(pcauchy((a1.hat[i-1]-a2.hat[i-1]+(b1.hat[i-1]-b2.hat[i-1])*fac[i])/sqrt(scale.A[i-1]+scale.B[i-1])),integrate(function (x) 2*log(x^2)/(pi^2*(x^2-1)), lower=0, upper=scale.A[i-1]/scale.B[i-1])$value)
+      if(isTRUE(runif(1)<prob.A[i]))
+      {
+        X[i]=rcauchy(1,location=muA[i],scale=s_A)
+        count.A=count.A+1
+        del[i]=1
+      }
+      else
+      {
+        X[i]=rcauchy(1,location=muB[i],scale=s_B)
+        count.B=count.B+1
+        del[i]=0
+      }
+    }
+    else
+    {
+      prob.A[i]=min(pcauchy((a1.hat[i-1]-a2.hat[i-1]+(b1.hat[i-1]-b2.hat[i-1])*fac[i])/sqrt(scale.A[i-1]+scale.B[i-1])),integrate(function (x) 2*log(x^2)/(pi^2*(x^2-1)), lower=0, upper=scale.A[i-1]/scale.B[i-1])$value)
+      if(isTRUE(runif(1)<prob.A[i]))
+      {
+        X[i]=rcauchy(1,location=muA[i],scale=s_A)
+        count.A=count.A+1
+        del[i]=1
+      }
+      else
+      {
+        X[i]=rcauchy(1,location=muB[i],scale=s_B)
+        count.B=count.B+1
+        del[i]=0
+      }
+    }
+    scale.A[i]=MASS::rlm(X[del==1]~fac[1:i][which(del==1)])$s
+    scale.B[i]=MASS::rlm(X[del==0]~fac[1:i][which(del==0)])$s
+   
+    a1.hat[i]=MASS::rlm(X[del==1]~fac[1:i][which(del==1)])$coefficients[1]
+    b1.hat[i]=MASS::rlm(X[del==1]~fac[1:i][which(del==1)])$coefficients[2]
+    a2.hat[i]=MASS::rlm(X[del==0]~fac[1:i][which(del==0)])$coefficients[1]
+    b2.hat[i]=MASS::rlm(X[del==0]~fac[1:i][which(del==0)])$coefficients[2]
+   
+  }
+  return(c(sum(del)/100,sum(1-del)/100))
+}
+result=matrix(0,nrow=5000,ncol=2)
+for(i in 1:5000)
+  result[i,]=clinical.int.cauchy(5,2,4,4,0.5,0.5,sample(c(1:100),100,replace=T))
+propA=mean(result[,1])
+sdA=sd(result[,1])
+l=list(propA,sdA)
+names(l)=c("Mean Ratio","Standard Error")
+l
+
+
+
+result1=matrix(0,nrow=5000,ncol=2)
+for(i in 1:5000)
+  result1[i,]=clinical.int.cauchy(2,2,4,4,0.1,0.5,sample(c(1:100),100,replace=T))
+propA=mean(result1[,1])
+sdA=sd(result1[,1])
+l=list(propA,sdA)
+names(l)=c("Mean Ratio","Standard Error")
+l
+
+result2=matrix(0,nrow=5000,ncol=2)
+for(i in 1:5000)
+  result2[i,]=clinical.int.cauchy(2,2,4,4,0.5,0.5,sample(c(1:100),100,replace=T))
+propA=mean(result2[,1])
+sdA=sd(result2[,1])
+l=list(propA,sdA)
+names(l)=c("Mean Ratio","Standard Error")
+l
